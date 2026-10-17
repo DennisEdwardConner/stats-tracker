@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: stats-tracker-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stats
+      POSTGRES_PASSWORD: stats
+      POSTGRES_DB: stats
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # runs once, on first init, in alphabetical order:
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./backend/db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+
+volumes:
+  db_data:
