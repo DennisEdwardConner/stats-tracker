@@ -86,3 +86,76 @@ export async function getDeaths(): Promise<PlayerDeath[]> {
     diedAt: r.died_at.toISOString(),
   }));
 }
+
+
+export type DeathInput = { playerId: number; killedBy: string };
+export type KillInput = {
+  matchId: number;
+  killerId: number;
+  victimType: string;
+  expAwarded: number;
+  assistIds?: number[];
+  deaths?: DeathInput[];
+};
+export type KillResult = {
+  killId: number;
+  assistIds: number[];
+  deathIds: number[];
+};
+
+export async function recordKill(input: KillInput): Promise<KillResult> {
+  const {
+    matchId,
+    killerId,
+    victimType,
+    expAwarded,
+    assistIds = [],
+    deaths = [],
+  } = input;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const killRes = await client.query<{ id: number }>(
+      `INSERT INTO kills (match_id, killer_id, victim_type, exp_awarded)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+      [matchId, killerId, victimType, expAwarded],
+    );
+    const killId = killRes.rows[0].id;
+
+    // unique assister per kill (PK is (kill_id, player_id)); ignore self-assist
+    const uniqueAssists = [...new Set(assistIds)].filter((id) => id !== killerId);
+    const insertedAssistIds: number[] = [];
+    for (const playerId of uniqueAssists) {
+      const a = await client.query<{ player_id: number }>(
+        `INSERT INTO kill_assists (kill_id, player_id)
+         VALUES ($1, $2)
+         RETURNING player_id`,
+        [killId, playerId],
+      );
+      insertedAssistIds.push(a.rows[0].player_id);
+    }
+
+    // deaths attach to the match, not the kill
+    const insertedDeathIds: number[] = [];
+    for (const d of deaths) {
+      const r = await client.query<{ id: number }>(
+        `INSERT INTO player_deaths (match_id, player_id, killed_by)
+         VALUES ($1, $2, $3)
+         RETURNING id`,
+        [matchId, d.playerId, d.killedBy],
+      );
+      insertedDeathIds.push(r.rows[0].id);
+    }
+
+    await client.query("COMMIT");
+    return { killId, assistIds: insertedAssistIds, deathIds: insertedDeathIds };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
