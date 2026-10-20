@@ -20,6 +20,24 @@ app.get("/leaderboard", async (_req, res) => {
   }
 });
 
+app.get("/kills", async (_req, res) => {
+  try {
+    res.json(await getKills());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+app.get("/deaths", async (_req, res) => {
+  try {
+    res.json(await getDeaths());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
 app.post("/kills", async (req, res) => {
   const body = req.body ?? {};
 
