@@ -121,7 +121,7 @@ export async function recordKill(input: KillInput): Promise<KillResult> {
       `INSERT INTO kills (match_id, killer_id, victim_type, exp_awarded)
        VALUES ($1, $2, $3, $4)
        RETURNING id`,
-      [matchId, killerId, victimType, expAwarded],
+      [matchId, killerId, victimType, Math.abs(expAwarded)],
     );
     const killId = killRes.rows[0].id;
 

@@ -21,7 +21,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await pool.query(`DELETE FROM matches WHERE id = $1`, [matchId]);
-  await pool.end();
 });
 
 describe("recordKill (integration, real Postgres)", () => {
@@ -89,5 +88,19 @@ describe("recordKill (integration, real Postgres)", () => {
     const killerRow = board.find((r) => r.playerId === killerId)!;
     expect(killerRow.kills).toBeGreaterThanOrEqual(3);
     expect(killerRow.deaths).toBe(0);
+  });
+
+  it("normalizes negative expAwarded to a positive value", async () => {
+    const result = await recordKill({
+      matchId,
+      killerId,
+      victimType: "zombie",
+      expAwarded: -10,
+    });
+
+    const after = await getKills();
+    const row = after.find((k) => k.id === result.killId);
+    expect(row).toBeDefined();
+    expect(row!.expAwarded).toBe(10);
   });
 });
