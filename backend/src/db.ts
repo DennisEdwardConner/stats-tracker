@@ -1,5 +1,5 @@
 import pg from "pg";
-import type { Player, Kill, PlayerDeath } from "./types.js";
+import type { Player, Match, Kill, PlayerDeath } from "./types.js";
 
 const { Pool } = pg;
 
@@ -22,6 +22,20 @@ export async function getPlayers(): Promise<Player[]> {
     id: r.id,
     externalId: r.external_id,
     name: r.name,
+  }));
+}
+
+export async function getMatches(): Promise<Match[]> {
+  const { rows } = await pool.query<{
+    id: number;
+    started_at: Date;
+    ended_at: Date | null;
+  }>("SELECT id, started_at, ended_at FROM matches ORDER BY id");
+
+  return rows.map((r) => ({
+    id: r.id,
+    startedAt: r.started_at.toISOString(),
+    endedAt: r.ended_at ? r.ended_at.toISOString() : null,
   }));
 }
 

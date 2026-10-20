@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express from "express";
-import { getPlayers, getKills, getDeaths, recordKill } from "./db.js";
+import { getPlayers, getMatches, getKills, getDeaths, recordKill } from "./db.js";
 import { computeLeaderboard } from "./services/leaderboard.js";
 
 const app = express();
@@ -32,6 +32,15 @@ app.get("/kills", async (_req, res) => {
 app.get("/deaths", async (_req, res) => {
   try {
     res.json(await getDeaths());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+app.get("/matches", async (_req, res) => {
+  try {
+    res.json(await getMatches());
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "internal_error" });
