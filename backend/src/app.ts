@@ -1,16 +1,35 @@
 import express from "express";
-import { getPlayers, getMatches, getKills, getDeaths, recordKill } from "./db.js";
+import {
+  getPlayers,
+  getMatches,
+  getKills,
+  getDeaths,
+  getAllKills,
+  getAllDeaths,
+  recordKill,
+  type Page,
+} from "./db.js";
 import { computeLeaderboard } from "./services/leaderboard.js";
 
 export const app = express();
 app.use(express.json());
 
+function parsePage(req: express.Request): Page {
+  const rawLimit = Number(req.query.limit ?? 50);
+  const rawOffset = Number(req.query.offset ?? 0);
+  const limit =
+    Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 200) : 50;
+  const offset =
+    Number.isInteger(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+  return { limit, offset };
+}
+
 app.get("/leaderboard", async (_req, res) => {
   try {
     const [players, kills, deaths] = await Promise.all([
       getPlayers(),
-      getKills(),
-      getDeaths(),
+      getAllKills(),
+      getAllDeaths(),
     ]);
     res.json(computeLeaderboard(players, kills, deaths));
   } catch (err) {
@@ -19,18 +38,18 @@ app.get("/leaderboard", async (_req, res) => {
   }
 });
 
-app.get("/kills", async (_req, res) => {
+app.get("/kills", async (req, res) => {
   try {
-    res.json(await getKills());
+    res.json(await getKills(parsePage(req)));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "internal_error" });
   }
 });
 
-app.get("/deaths", async (_req, res) => {
+app.get("/deaths", async (req, res) => {
   try {
-    res.json(await getDeaths());
+    res.json(await getDeaths(parsePage(req)));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "internal_error" });

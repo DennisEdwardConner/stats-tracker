@@ -39,68 +39,102 @@ export async function getMatches(): Promise<Match[]> {
   }));
 }
 
-export async function getKills(): Promise<Kill[]> {
-  // one query for kills, one for assists, then stitch them together in JS.
-  const killsQ = pool.query<{
-    id: number;
-    match_id: number;
-    killer_id: number;
-    victim_type: string;
-    exp_awarded: number;
-    killed_at: Date;
-  }>(
-    `SELECT id, match_id, killer_id, victim_type, exp_awarded, killed_at
-       FROM kills
-      ORDER BY id`,
-  );
+export type Page = { limit: number; offset: number };
 
-  const assistsQ = pool.query<{
+type KillRow = {
+  id: number;
+  match_id: number;
+  killer_id: number;
+  victim_type: string;
+  exp_awarded: number;
+  killed_at: Date;
+};
+
+const KILL_COLS =
+  "id, match_id, killer_id, victim_type, exp_awarded, killed_at";
+
+async function attachAssists(rows: KillRow[]): Promise<Kill[]> {
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
+  const { rows: assistRows } = await pool.query<{
     kill_id: number;
     player_id: number;
-  }>("SELECT kill_id, player_id FROM kill_assists");
+  }>(
+    "SELECT kill_id, player_id FROM kill_assists WHERE kill_id = ANY($1)",
+    [ids],
+  );
 
-  const [killsRes, assistsRes] = await Promise.all([killsQ, assistsQ]);
-
-  const assistsByKill = new Map<number, number[]>();
-  for (const a of assistsRes.rows) {
-    const list = assistsByKill.get(a.kill_id) ?? [];
+  const byKill = new Map<number, number[]>();
+  for (const a of assistRows) {
+    const list = byKill.get(a.kill_id) ?? [];
     list.push(a.player_id);
-    assistsByKill.set(a.kill_id, list);
+    byKill.set(a.kill_id, list);
   }
 
-  return killsRes.rows.map((r) => ({
+  return rows.map((r) => ({
     id: r.id,
     matchId: r.match_id,
     killerId: r.killer_id,
     victimType: r.victim_type,
     expAwarded: r.exp_awarded,
     killedAt: r.killed_at.toISOString(),
-    assistIds: assistsByKill.get(r.id) ?? [],
+    assistIds: byKill.get(r.id) ?? [],
   }));
 }
 
-export async function getDeaths(): Promise<PlayerDeath[]> {
-  const { rows } = await pool.query<{
-    id: number;
-    match_id: number;
-    player_id: number;
-    killed_by: string;
-    died_at: Date;
-  }>(
-    `SELECT id, match_id, player_id, killed_by, died_at
-       FROM player_deaths
-      ORDER BY id`,
+export async function getKills(
+  page: Page = { limit: 50, offset: 0 },
+): Promise<Kill[]> {
+  const { rows } = await pool.query<KillRow>(
+    `SELECT ${KILL_COLS} FROM kills ORDER BY id LIMIT $1 OFFSET $2`,
+    [page.limit, page.offset],
   );
+  return attachAssists(rows);
+}
 
-  return rows.map((r) => ({
+export async function getAllKills(): Promise<Kill[]> {
+  const { rows } = await pool.query<KillRow>(
+    `SELECT ${KILL_COLS} FROM kills ORDER BY id`,
+  );
+  return attachAssists(rows);
+}
+
+type DeathRow = {
+  id: number;
+  match_id: number;
+  player_id: number;
+  killed_by: string;
+  died_at: Date;
+};
+
+const DEATH_COLS = "id, match_id, player_id, killed_by, died_at";
+
+function toDeath(r: DeathRow): PlayerDeath {
+  return {
     id: r.id,
     matchId: r.match_id,
     playerId: r.player_id,
     killedBy: r.killed_by,
     diedAt: r.died_at.toISOString(),
-  }));
+  };
 }
 
+export async function getDeaths(
+  page: Page = { limit: 50, offset: 0 },
+): Promise<PlayerDeath[]> {
+  const { rows } = await pool.query<DeathRow>(
+    `SELECT ${DEATH_COLS} FROM player_deaths ORDER BY id LIMIT $1 OFFSET $2`,
+    [page.limit, page.offset],
+  );
+  return rows.map(toDeath);
+}
+
+export async function getAllDeaths(): Promise<PlayerDeath[]> {
+  const { rows } = await pool.query<DeathRow>(
+    `SELECT ${DEATH_COLS} FROM player_deaths ORDER BY id`,
+  );
+  return rows.map(toDeath);
+}
 
 export type DeathInput = { playerId: number; killedBy: string };
 export type KillInput = {
