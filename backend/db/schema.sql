@@ -11,11 +11,20 @@ CREATE TABLE matches (
   ended_at    TIMESTAMPTZ
 );
 
+-- enemy catalogue: classification drives EXP, display text, and (later) sound.
+CREATE TABLE enemy_types (
+  id           SERIAL PRIMARY KEY,
+  slug         TEXT UNIQUE NOT NULL,   -- stored in kills.victim_type / player_deaths.killed_by
+  display      TEXT NOT NULL,          -- "tommy killed goblin archer"
+  exp_awarded  INT  NOT NULL,
+  sound        TEXT                    -- reserved for game engine hookup
+);
+
 CREATE TABLE kills (
   id           SERIAL PRIMARY KEY,
   match_id     INT  NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
   killer_id    INT  NOT NULL REFERENCES players(id),
-  victim_type  TEXT NOT NULL,
+  victim_type  TEXT NOT NULL REFERENCES enemy_types(slug),
   exp_awarded  INT  NOT NULL DEFAULT 0,
   killed_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -32,7 +41,7 @@ CREATE TABLE player_deaths (
   id          SERIAL PRIMARY KEY,
   match_id    INT  NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
   player_id   INT  NOT NULL REFERENCES players(id),
-  killed_by   TEXT NOT NULL,           -- enemy type, e.g. "zombie"
+  killed_by   TEXT NOT NULL REFERENCES enemy_types(slug),  -- enemy type
   died_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

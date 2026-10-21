@@ -1,3 +1,8 @@
+-- enemy catalogue (insert first — kills/deaths FK to slug)
+INSERT INTO enemy_types (slug, display, exp_awarded, sound) VALUES
+  ('zombie',        'zombie',        10, NULL),
+  ('goblin_archer', 'goblin archer', 25, NULL);
+
 -- sample players
 INSERT INTO players (external_id, name) VALUES
   ('ext-alice',  'alice'),
