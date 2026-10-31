@@ -3,6 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "tsx watch backend/src/server.ts",
+    "start": "tsx backend/src/server.ts",
+    "db:up": "docker compose up -d",
+    "db:reset": "docker compose down -v && docker compose up -d",
     "test": "vitest run --root backend",
     "test:watch": "vitest --root backend",
     "typecheck": "tsc --noEmit -p backend/tsconfig.json"

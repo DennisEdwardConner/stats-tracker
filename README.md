@@ -10,5 +10,20 @@ PvE match stats API. Postgres via Docker, Express, TypeScript, Vitest.
 ## Setup
 
 ```bash
-docker compose up -d          # start Postgres
 npm install
+cp .env.example .env     # adjust if your DB creds differ
+npm run db:up            # start Postgres (schema + seed auto-run on first init)
+npm run dev              # API on http://localhost:3000
+```
+
+## Endpoints
+
+- `GET /leaderboard`
+- `GET /matches`
+- `GET /kills` — supports `?limit=` (max 200) and `?offset=`
+- `GET /deaths` — supports `?limit=` and `?offset=`
+- `POST /kills` — record a kill (killer, victim type, assists, deaths, exp)
+
+## Scripts
+
+`npm test` · `npm run typecheck` · `npm run db:reset`
